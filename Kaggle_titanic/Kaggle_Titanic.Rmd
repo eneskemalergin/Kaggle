@@ -1,0 +1,321 @@
+---
+title: "Kaggle_Titanic"
+output: html_document
+---
+
+First thing is to get the given data from ```Kaggle``` website, download it from [here](https://kaggle2.blob.core.windows.net/competitions-data/kaggle/3136/train.csv?sv=2012-02-12&se=2015-11-01T06%3A05%3A45Z&sr=b&sp=r&sig=DOhFgEYNi64ouVRPK69Yt6IkmTdBKYy4b%2ByVvS2Dpsk%3D). This will be our first data which we will call it training data. You may save it as train.csv. 
+
+Then check your working directory by using ```getwd()``` command. If it is not the directory that we wanted to be inside, you can change it by using ```setwd("/Users/....")```
+
+Let's start examining our data:
+
+- Reading the csv file and checking with ```str()``` function
+
+```{r}
+train.data = read.csv("train.csv", na.strings=c("NA", "")) # Converting empty ones to NA
+str(train.data)
+```
+
+- We have to convert a nominal variable from a character into a factor.
+
+```{r}
+train.data$Survived = factor(train.data$Survived)
+train.data$Pclass = factor(train.data$Pclass)
+str(train.data)
+```
+
+- Finding missing values and 
+  - Denote which index 
+  
+```{r}
+is.na(train.data$Age) # If TRUE then its NA
+sum(is.na(train.data$Age) == TRUE) # Calculate how many of them
+sum(is.na(train.data$Age) == TRUE) / length(train.data$Age) # Calculating Percentage of NA's
+```
+
+  - Calculate all the percentage in other attributes
+  
+```{r}
+sapply(train.data, function(df) {sum(is.na(df)==TRUE)/ length(df);}) # Gets all the attributes percentage
+```
+
+> We may also use the ```Amelia``` package to visualize the missing values. To be able to use it we have to install it first.
+
+```{r}
+install.packages("Amelia") # Install the package
+require(Amelia) # Get ready to use the package
+```
+
+- Then, use the ```missmap``` function to plot the missing value map:
+
+```{r}
+missmap(train.data, main="Missing Map") # Shows the missing values percentage using plot
+```
+
+- Since missing values have small importance in this data we might impute them. 
+
+```{r}
+table(train.data$Embarked, useNA = "always") # Shows the different types inside the attribute with NA
+train.data$Embarked[which(is.na(train.data$Embarked))] = 'S'; # If NA then make it equal to S
+table(train.data$Embarked, useNA = "always") # Now we have no NA left.
+```
+
+- Let's get the types of titles in names like Mr., Miss., and so on
+
+```{r}
+train.data$Name = as.character(train.data$Name) # Make it character
+table_words = table(unlist(strsplit(train.data$Name, "\\s+"))) # split it with \\s+
+sort(table_words [grep('\\.',names(table_words))],decreasing=TRUE) # Show with decreading order
+```
+
+- Obtaining which title contains missing values
+
+```{r}
+library(stringr) # Calling the library
+tb = cbind(train.data$Age, str_match(train.data$Name, "[a-zA-Z]+\\.")) # Get the substring containing period, then bind the column
+table(tb[is.na(tb[,1]),2]) # acquire the statistics of missing values
+```
+
+- Assigning the mean value for each title to impute the data for missing values
+
+```{r}
+mean.mr = mean(train.data$Age[grepl(" Mr\\.", train.data$Name) & !is.na(train.data$Age)])
+mean.mrs = mean(train.data$Age[grepl(" Mrs\\.", train.data$Name) & !is.na(train.data$Age)])
+mean.dr = mean(train.data$Age[grepl(" Dr\\.", train.data$Name) & !is.na(train.data$Age)])
+mean.miss = mean(train.data$Age[grepl(" Miss\\.", train.data$Name) & !is.na(train.data$Age)])
+mean.master = mean(train.data$Age[grepl(" Master\\.", train.data$Name) & !is.na(train.data$Age)])
+```
+
+- Then assigning the missing value with the mean value of each title:
+
+```{r}
+train.data$Age[grepl(" Mr\\.", train.data$Name) & is.na(train.data$Age)] = mean.mr
+train.data$Age[grepl(" Mrs\\.", train.data$Name) & is.na(train.data$Age)] = mean.mrs
+train.data$Age[grepl(" Dr\\.", train.data$Name) & is.na(train.data$Age)] = mean.dr
+train.data$Age[grepl(" Miss\\.", train.data$Name) & is.na(train.data$Age)] = mean.miss
+train.data$Age[grepl(" Master\\.", train.data$Name) & is.na(train.data$Age)] = mean.master
+```
+
+Now we should go to exploratory analysis, in which we will work alot on visualizing. Visualizing helps the programmer/data analyst a lot that's why I will use it here.
+
+- Let's plot a simple plot using passenger survival attribute:
+
+```{r}
+# Barplot with title Passenger Survival and Perished Survived types inside
+barplot(table(train.data$Survived), main="Passenger Survival",names= c("Perished", "Survived"))
+```
+
+
+```{r}
+# Barplot
+barplot(table(train.data$Pclass), main="Passenger Class", names= c("first", "second", "third"))
+```
+
+```{r}
+barplot(table(train.data$Sex), main="Passenger Gender")
+```
+
+```{r}
+# Histogram of ages in Titanic
+hist(train.data$Age, main="Passenger Age", xlab = "Age")
+```
+
+```{r}
+# Siblings shown by Histogram
+barplot(table(train.data$SibSp), main="Passenger Siblings")
+```
+
+You can increase the number of examples since the data is very diverse...
+
+Let's do something different
+
+- Here is a ```barplot``` to find out which gender is more likely to perish during shipwrecks:
+
+```{r}
+counts = table( train.data$Survived, train.data$Sex)
+barplot(counts, col=c("darkblue","red"), legend = c("Perished", "Survived"), main = "Passenger Survival by Sex")
+```
+
+- Let's also examine whether the ```Pclass``` factor of each passenger may affect the survival rate:
+
+```{r}
+counts = table( train.data$Survived, train.data$Pclass)
+barplot(counts, col=c("darkblue","red"), legend =c("Perished", "Survived"), main= "Titanic Class Bar Plot" )
+```
+
+- Also examine the gender composition of each Pclass:
+
+```{r}
+counts = table( train.data$Sex, train.data$Pclass)
+barplot(counts, col=c("darkblue","red"), legend = rownames(counts), main= "Passenger Gender by Class")
+```
+
+- Furthermore, we examine the histogram of passenger ages:
+
+```{r}
+hist(train.data$Age[which(train.data$Survived == "0")], main= "Passenger Age Histogram", xlab="Age", ylab="Count", col ="blue",breaks=seq(0,80,by=2))
+hist(train.data$Age[which(train.data$Survived == "1")], col ="red", add = T, breaks=seq(0,80,by=2))
+```
+
+- If you want to classify the ages like child, youth, adult, senior here is how:
+
+```{r}
+train.child = train.data$Survived[train.data$Age < 13]
+length(train.child[which(train.child == 1)] ) / length(train.child)
+# 0.5753425
+
+train.youth = train.data$Survived[train.data$Age >= 15 & train.data$Age < 25]
+length(train.youth[which(train.youth == 1)] ) / length(train.youth)
+# 0.4025424
+
+train.adult = train.data$Survived[train.data$Age >= 20 & train.data$Age < 65]
+length(train.adult[which(train.adult == 1)] ) / length(train.adult)
+# 0.3651685
+
+train.senior = train.data$Survived[train.data$Age >= 65]
+length(train.senior[which(train.senior == 1)] ) / length(train.senior)
+# 0.09090909
+```
+
+---
+
+## Prediction with Decision Trees
+
+Now we will start discussing real stuff; which will be predicting the passenger survival using machine learning in our case decision trees:
+
+Exploratory analysis can give us some images and plots to make things more solid and understandable, but it won't give us the ability to predict the survival rate. For this problem however, Machine learning has the answer. The methods of machine learning can generate a prediction model from a training dataset, so that the user can apply the model to predict the possible labels from the given attributes.
+
+Let's diving into decision trees and how to implement one in R:
+
+- Construct a function to split the data
+
+```{r}
+# Takes an input dataset, proportion of generated subset from the dataset (p), and random seed (s)
+split.data = function(data, p = 0.7, s = 666){
+set.seed(s) # sets the seed with given random seed
+index = sample(1:dim(data)[1]) 
+train = data[index[1:floor(dim(data)[1] * p)], ]
+test = data[index[((ceiling(dim(data)[1] * p)) +1):dim(data)[1]], ]
+return(list(train = train, test = test))
+}
+# This function basically takes the data and splits it into training and test datasets which makes it Machine learning
+```
+
+- Then we split the data, with 70 percent assigned to the training dataset and the remaining 30 percent for the testing dataset:
+
+```{r}
+allset= split.data(train.data, p = 0.7) # Split the data %70 training and %30 testing
+trainset = allset$train # Then assing it to new variables
+testset = allset$test # Then assing it to new variables
+```
+
+For the condition tree, one has to use the ```ctree``` function from the party package; therefore, we install and load the party package:
+
+```{r}
+install.packages('party')
+require('party')
+```
+
+- Then use Survived as a label to generate the prediction model in use. After that, we assign the classification tree model into the ```train.ctree``` variable:
+
+```{r}
+train.ctree = ctree(Survived ~ Pclass + Sex + Age + SibSp + Fare + Parch + Embarked, data=trainset)
+train.ctree
+```
+
+```
+
+	 Conditional inference tree with 7 terminal nodes
+
+Response:  Survived 
+Inputs:  Pclass, Sex, Age, SibSp, Fare, Parch, Embarked 
+Number of observations:  623 
+
+1) Sex == {male}; criterion = 1, statistic = 173.672
+  2) Pclass == {2, 3}; criterion = 1, statistic = 30.951
+    3) Age <= 9; criterion = 0.993, statistic = 10.923
+      4) SibSp <= 1; criterion = 0.999, statistic = 14.856
+        5)*  weights = 10 
+      4) SibSp > 1
+        6)*  weights = 13 
+    3) Age > 9
+      7)*  weights = 280 
+  2) Pclass == {1}
+    8)*  weights = 87 
+1) Sex == {female}
+  9) Pclass == {1, 2}; criterion = 1, statistic = 59.504
+    10)*  weights = 125 
+  9) Pclass == {3}
+    11) Fare <= 23.25; criterion = 0.997, statistic = 12.456
+      12)*  weights = 85 
+    11) Fare > 23.25
+      13)*  weights = 23 
+```
+
+- Then plot the ctree
+
+```{r}
+plot(train.ctree, main="Conditional inference tree of Titanic Dataset")
+```
+
+Before we go to another step let me clarify the things that we did here:
+
+So, in here we learned how to use a conditional inference tree, ```ctree```, to predict passenger
+survival. It is really easy for starters like so I choose this method but it is not the only method for classification.
+
+In the machine learning part we started with defining function which splits our data into 2 parts; training set and test set. We are using training set to generate a prediction model and later employ the prediction model on the testing dataset in the recipe of the model assessment. 
+
+You did realized something that we did not include cabin attribute in our classification because there are a lot of missing values inside of that. 
+
+---
+
+__How do we validate the power of prediction with confusion matrix:__
+
+When we construct the prediction model, it is also essential to make something to validate how the models perform the prediction. Previously, we built a model with ctree and pre-split the data into a training and testing set. Now we will see how to validate the prediction, how well is it using confusion matrix.
+
+- Let's validate the prediction power:
+```{r}
+ctree.predict = predict(train.ctree, testset) # Using constructe ctree to predict the survival rate of testset
+```
+
+> We will use more packages to handle validating the prediction power
+
+```{r}
+install.packages("caret")
+require(caret)
+```
+
+- Now we can use confusion matrix to generate statistics of the output matrix:
+
+```{r}
+confusionMatrix(ctree.predict, testset$Survived)
+```
+
+```
+Confusion Matrix and Statistics
+
+          Reference
+Prediction   0   1
+         0 160  23
+         1  16  68
+                                         
+               Accuracy : 0.8539         
+                 95% CI : (0.8058, 0.894)
+    No Information Rate : 0.6592         
+    P-Value [Acc > NIR] : 5.347e-13      
+                                         
+                  Kappa : 0.6688         
+ Mcnemar's Test P-Value : 0.3367         
+                                         
+            Sensitivity : 0.9091         
+            Specificity : 0.7473         
+         Pos Pred Value : 0.8743         
+         Neg Pred Value : 0.8095         
+             Prevalence : 0.6592         
+         Detection Rate : 0.5993         
+   Detection Prevalence : 0.6854         
+      Balanced Accuracy : 0.8282         
+                                         
+       'Positive' Class : 0
+```
+
