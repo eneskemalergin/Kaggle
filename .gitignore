@@ -55,3 +55,8 @@ docs/_build/
 
 # PyBuilder
 target/
+
+# Database thingyies
+.DS_Store
+.RData
+.Rhistory
